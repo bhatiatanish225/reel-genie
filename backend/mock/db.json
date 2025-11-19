@@ -1,0 +1,53 @@
+{
+  "reels": [
+    {
+      "id": 1,
+      "user_id": 1,
+      "prompt": "financial literacy tips for students",
+      "duration_seconds": 30,
+      "status": "ready",
+      "caption": "Stop wasting money in 2025!",
+      "hashtags": ["#moneytips", "#students", "#finance"],
+      "video_url": "https://cdn.example.com/reels/1.mp4",
+      "thumbnail_url": "https://cdn.example.com/thumbs/1.jpg",
+      "scheduled_time": null,
+      "ig_post_id": null,
+      "created_at": "2025-11-19T09:00:00Z"
+    },
+    {
+      "id": 2,
+      "user_id": 1,
+      "prompt": "healthy breakfast ideas",
+      "duration_seconds": 15,
+      "status": "generating",
+      "caption": null,
+      "hashtags": [],
+      "video_url": null,
+      "thumbnail_url": null,
+      "scheduled_time": null,
+      "ig_post_id": null,
+      "created_at": "2025-11-19T10:00:00Z"
+    }
+  ],
+  "users": [
+    {
+      "id": 1,
+      "username": "demo@example.com",
+      "email": "demo@example.com",
+      "is_active": true,
+      "created_at": "2025-11-01T00:00:00Z"
+    }
+  ],
+  "analytics": [
+    {
+      "id": 1,
+      "reel_id": 1,
+      "event_type": "posted",
+      "payload": {
+        "ig_post_id": "123456789",
+        "posted_at": "2025-11-19T12:00:00Z"
+      },
+      "created_at": "2025-11-19T12:00:00Z"
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "/v1/auth/login": "/auth/login",
+  "/v1/reels": "/reels",
+  "/v1/reels/:id": "/reels/:id",
+  "/v1/analytics": "/analytics",
+  "/v1/health": "/health"
+}
