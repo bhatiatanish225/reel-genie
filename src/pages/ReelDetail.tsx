@@ -1,6 +1,8 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { api } from "@/lib/api";
+import { reelWebSocket } from "@/lib/websocket";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,7 +16,8 @@ import {
   X,
   Download,
   Send,
-  Clock
+  Clock,
+  Wifi
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -40,11 +43,28 @@ export default function ReelDetail() {
   const { data: reel, isLoading } = useQuery({
     queryKey: ["reel", id],
     queryFn: () => api.getReel(parseInt(id!)),
-    refetchInterval: (query) => {
-      const data = query.state.data;
-      return data?.status === "generating" || data?.status === "posting" ? 2000 : false;
-    },
   });
+
+  // Set up WebSocket for real-time updates
+  useEffect(() => {
+    const unsubscribe = reelWebSocket.subscribe((update) => {
+      if (update.id === parseInt(id!)) {
+        // Invalidate and refetch when we get an update for this reel
+        queryClient.invalidateQueries({ queryKey: ["reel", id] });
+        
+        toast({
+          title: "Status updated",
+          description: update.message || `Reel status: ${update.status}`,
+        });
+      }
+    });
+
+    reelWebSocket.connect();
+
+    return () => {
+      unsubscribe();
+    };
+  }, [id, queryClient, toast]);
 
   const publishMutation = useMutation({
     mutationFn: () => api.publishReel(parseInt(id!)),
@@ -100,10 +120,16 @@ export default function ReelDetail() {
           <ArrowLeft className="w-4 h-4" />
           Back
         </Button>
-        <Badge className={cn("text-sm px-3 py-1", config.color)}>
-          <Icon className={cn("w-4 h-4 mr-2", reel.status === "generating" && "animate-spin")} />
-          {config.label}
-        </Badge>
+        <div className="flex items-center gap-3">
+          <Badge variant="secondary" className="bg-success/10 text-success">
+            <Wifi className="w-3 h-3 mr-1" />
+            Live
+          </Badge>
+          <Badge className={cn("text-sm px-3 py-1", config.color)}>
+            <Icon className={cn("w-4 h-4 mr-2", reel.status === "generating" && "animate-spin")} />
+            {config.label}
+          </Badge>
+        </div>
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6">
