@@ -34,22 +34,46 @@ export interface CreateReelRequest {
   metadata?: Record<string, any>;
 }
 
+export interface BatchCreateRequest {
+  items: Array<{
+    prompt: string;
+    duration_seconds?: 15 | 30 | 60;
+    voice?: string;
+  }>;
+  global_options: {
+    music_mood: string;
+    post_now: boolean;
+    scheduled_time?: string;
+  };
+}
+
+export interface BatchCreateResponse {
+  batch_id: string;
+  created_count: number;
+  items: Array<{ id: number; status: ReelStatus }>;
+}
+
 export interface AnalyticsData {
   metrics: {
     posts: number;
     total_impressions: number;
     total_likes: number;
+    avg_engagement: number;
   };
   timeseries: Array<{
     date: string;
     posts: number;
     impressions: number;
     likes: number;
+    comments: number;
+    saves: number;
   }>;
   top_hashtags: Array<{
     tag: string;
     count: number;
+    impressions: number;
   }>;
+  by_status: Record<ReelStatus, number>;
 }
 
 // Mock data storage
@@ -229,31 +253,108 @@ export const api = {
     return reel;
   },
 
-  async getAnalytics(): Promise<AnalyticsData> {
+  async createBatch(data: BatchCreateRequest): Promise<BatchCreateResponse> {
+    await delay(700);
+    const batch_id = `bch_${Date.now()}`;
+    const createdReels: Reel[] = [];
+
+    for (const item of data.items) {
+      const newReel: Reel = {
+        id: nextId++,
+        user_id: 1,
+        prompt: item.prompt,
+        duration_seconds: item.duration_seconds || 30,
+        status: "queued",
+        caption: "",
+        hashtags: [],
+        video_url: null,
+        thumbnail_url: null,
+        scheduled_time: data.global_options.scheduled_time || null,
+        ig_post_id: null,
+        created_at: new Date().toISOString(),
+        logs: [
+          { ts: new Date().toISOString(), level: "info", message: "Enqueued for generation" }
+        ],
+        metadata: { batch_id }
+      };
+      createdReels.push(newReel);
+      mockReels = [newReel, ...mockReels];
+      
+      // Simulate generation with stagger
+      setTimeout(() => simulateGeneration(newReel.id), 2000 + Math.random() * 3000);
+    }
+
+    return {
+      batch_id,
+      created_count: createdReels.length,
+      items: createdReels.map(r => ({ id: r.id, status: r.status }))
+    };
+  },
+
+  async getAnalytics(params?: { start?: string; end?: string; status?: ReelStatus }): Promise<AnalyticsData> {
     await delay(400);
+    
+    // Filter data based on params
+    let filteredReels = mockReels;
+    if (params?.status) {
+      filteredReels = filteredReels.filter(r => r.status === params.status);
+    }
+    
     return {
       metrics: {
         posts: 12,
         total_impressions: 45230,
-        total_likes: 3420
+        total_likes: 3420,
+        avg_engagement: 7.56
       },
       timeseries: [
-        { date: "2025-11-13", posts: 2, impressions: 3200, likes: 245 },
-        { date: "2025-11-14", posts: 1, impressions: 4100, likes: 312 },
-        { date: "2025-11-15", posts: 3, impressions: 5800, likes: 445 },
-        { date: "2025-11-16", posts: 2, impressions: 3900, likes: 298 },
-        { date: "2025-11-17", posts: 1, impressions: 4200, likes: 325 },
-        { date: "2025-11-18", posts: 2, impressions: 6100, likes: 478 },
-        { date: "2025-11-19", posts: 1, impressions: 3800, likes: 287 }
+        { date: "2025-11-13", posts: 2, impressions: 3200, likes: 245, comments: 18, saves: 42 },
+        { date: "2025-11-14", posts: 1, impressions: 4100, likes: 312, comments: 24, saves: 56 },
+        { date: "2025-11-15", posts: 3, impressions: 5800, likes: 445, comments: 35, saves: 78 },
+        { date: "2025-11-16", posts: 2, impressions: 3900, likes: 298, comments: 21, saves: 51 },
+        { date: "2025-11-17", posts: 1, impressions: 4200, likes: 325, comments: 28, saves: 63 },
+        { date: "2025-11-18", posts: 2, impressions: 6100, likes: 478, comments: 42, saves: 89 },
+        { date: "2025-11-19", posts: 1, impressions: 3800, likes: 287, comments: 19, saves: 47 }
       ],
       top_hashtags: [
-        { tag: "#moneytips", count: 5 },
-        { tag: "#productivity", count: 4 },
-        { tag: "#students", count: 3 },
-        { tag: "#healthyeating", count: 3 },
-        { tag: "#finance", count: 2 }
-      ]
+        { tag: "#moneytips", count: 5, impressions: 12500 },
+        { tag: "#productivity", count: 4, impressions: 9800 },
+        { tag: "#students", count: 3, impressions: 7200 },
+        { tag: "#healthyeating", count: 3, impressions: 6900 },
+        { tag: "#finance", count: 2, impressions: 5400 }
+      ],
+      by_status: {
+        created: 0,
+        queued: mockReels.filter(r => r.status === "queued").length,
+        generating: mockReels.filter(r => r.status === "generating").length,
+        ready: mockReels.filter(r => r.status === "ready").length,
+        scheduled: mockReels.filter(r => r.status === "scheduled").length,
+        posting: mockReels.filter(r => r.status === "posting").length,
+        posted: mockReels.filter(r => r.status === "posted").length,
+        failed: mockReels.filter(r => r.status === "failed").length,
+        cancelled: mockReels.filter(r => r.status === "cancelled").length
+      }
     };
+  },
+
+  exportAnalyticsCSV(data: AnalyticsData): string {
+    const headers = ["Date", "Posts", "Impressions", "Likes", "Comments", "Saves", "Engagement Rate"];
+    const rows = data.timeseries.map(row => [
+      row.date,
+      row.posts,
+      row.impressions,
+      row.likes,
+      row.comments,
+      row.saves,
+      ((row.likes / row.impressions) * 100).toFixed(2) + "%"
+    ]);
+    
+    const csvContent = [
+      headers.join(","),
+      ...rows.map(row => row.join(","))
+    ].join("\n");
+    
+    return csvContent;
   }
 };
 
